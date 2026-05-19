@@ -315,6 +315,18 @@ At mean error **0.0038** on a 0–1 scale, the model is hitting targets with sub
 
 ---
 
+## SCENARIO
+
+Scenarios are in the following format. The goal will be to soon unify the Scenario and Calibration data formats. 
+
+# name int_rev debt_gdp usd_reserve_share cbo_deficit xdate sahm tail_risk liq_gap ofr hy_spread dxy_mom oil_price ai_capex geopolitical_risk investor_sentiment
+
+managed_norm_1 22 70 65 3 90 0.2 1.2 1.0 0.95 600 5 80 1.0 0.5 0.4
+managed_norm_2 23 72 66 3.2 88 0.18 1.1 1.05 0.96 580 4 82 1.1 0.45 0.42
+managed_norm_3 21 68 64 2.8 92 0.22 1.3 0.98 0.94 620 6 78 0.9 0.55 0.38
+
+---
+
 ## Input Vector — 19-Field Sovereign Risk Schema
 
 | Field | Description | Range |
