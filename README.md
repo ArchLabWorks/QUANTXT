@@ -498,7 +498,7 @@ Systems engineer. 16 years industrial operations experience.  Building quantitat
 ---
 
 ## Changelog
-QUANTXT v1.11 — Stability & Architecture Cleanup Release
+# QUANTXT v1.11 — Stability & Architecture Cleanup Release
 
 Release Date: May 2026
 
