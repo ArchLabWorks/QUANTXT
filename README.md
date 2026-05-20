@@ -13,7 +13,7 @@
 ---
 
 > Built to answer a real question: given current US sovereign conditions, what does the data say the stress probability is?  
-> The answer runs on a 1981 coprocessor with a mean calibration error of **0.0038**.
+> The answer runs on a 1981 coprocessor with a MSE: 0.0038 (average squared error per scenario) and a RMSE: ~0.062 (typical prediction error in [0,1] scale units)
 
 ---
 
@@ -37,7 +37,7 @@ QUANTXT is designed to be **transparent, inspectable, and easy to reason about**
 
 QUANTXT is a deterministic, nonlinear, multi-factor macro-financial simulation engine implemented in C89 and executed on IBM XT-class hardware. It computes a sovereign risk index by aggregating 13 economic, political, and market-based factor modules through a weighted nonlinear pipeline with reflexive feedback.
 
-It is current an alpha demo. It is not a tutorial project. The goal is to build a calibrated analytical instrument — built to model US sovereign risk dynamics using real FRED macroeconomic data and market inputs, cross-referenced against contemporary macro frameworks including Paul Tudor Jones's bond market stress thesis and Garrett Jones's structural fiscal narrative.
+It is currently an alpha demo. It is not a tutorial project. The goal is to build a calibrated analytical instrument — built to model US sovereign risk dynamics using real FRED macroeconomic data and market inputs, cross-referenced against contemporary macro frameworks including Paul Tudor Jones's bond market stress thesis and Garrett Jones's structural fiscal narrative.
 
 The engine began as a YAML schema, was validated in Python, and was hardened into C89/8087 production code — with calibration tightening at each step, not loosening. The most constrained environment produced the most accurate results.
 
