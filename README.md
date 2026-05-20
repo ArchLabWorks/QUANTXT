@@ -13,7 +13,7 @@
 ---
 
 > Built to answer a real question: given current US sovereign conditions, what does the data say the stress probability is?
-> The answer runs on a 1981 coprocessor. Calibrated against 60 scenarios — MSE 0.0038, RMSE 0.062 on a [0,1] scale.?  
+> The answer runs on a 1981 coprocessor. Calibrated against 60 scenarios — MSE 0.0038, RMSE 0.062 on a [0,1] scale.
  
 
 ---
