@@ -34,19 +34,21 @@ QUANTXT.EXE              — Main engine + DOS text-mode UI
 MAIN
 ├── INTRO          (splash screen, no deps)
 ├── BROWSER        (scenario picker UI)
-│   └── SCENARIO
+│   └── SCENARIO   (scenario registry + loader + manual input)
 ├── FILEBRO        (file picker UI, no module deps)
-├── SCENARIO       (scenario registry + loader + manual input)
-├── MODULES        (M1–M13 stress functions + compute_system_out)  ◄─┐
-├── SYSTEM         (SYSTEM_engine, init_default_params)  ────────────┘ ⚠ CYCLE
-│   ├── MODULES                                                        ⚠ CYCLE
+├── SCENARIO       (scenario registry, scenario_count, loader, manual input)
+├── MODULES        (M1–M13 stress functions + compute_system_out)
+│   └── state.h    (shared types: State, Scenario, Params, SystemOut)
+├── SYSTEM         (SYSTEM_engine, init_default_params)
+│   ├── MODULES    (pure stress modules, no cycle in v1.11)
 │   ├── UTIL       (clip01, LOGF, SMOOTH_STEP, PWL, SPL)
 │   ├── HISTORY    (run history ring buffer)
 │   └── ENGINE     (OLS scoring engine)
-├── DASH           (dashboard UI)
+├── DASH           (dashboard UI — BIOS text renderer)
 ├── QXCALIB        (calibration runner)
 │   └── ENGINE
 └── ENGINE         (run_engine — pure float scorer)
+
 ```
 
 ---
@@ -105,13 +107,13 @@ Exports: `run_engine(const State *st)`
 
 ---
 
-### MODULES.C / MODULES.H  ⚠
-**Stress sub-modules M1–M13 + `compute_system_out`.**  
-Each M-function is pure, deterministic, returns a [0,1] score.  
-Evaluation order matters: M3→M1, M5→M2, M9→M6.  
-Depends on: `state.h`, `system.h` ← **causes cycle with SYSTEM**  
-Contains a local `static clip01()` that duplicates `UTIL.C` — should use `util.h`.  
-Exports: `M1`–`M13`, `compute_system_out(const State*, SystemOut*)`
+### **MODULES.C / MODULES.H**
+**Stress sub‑modules M1–M13 + `compute_system_out`.**  
+Each M‑function is pure, deterministic, and returns a normalized **[0–1]** stress score.  
+Evaluation order is dependency‑aware: **M3 → M1**, **M5 → M2**, **M9 → M6**.  
+Now depends only on **`state.h`** (circular dependency with SYSTEM removed in v1.11).  
+Uses the canonical `clip01()` from **`util.h`** (duplicate local version removed).  
+Exports: **`M1`–`M13`**, `compute_system_out(const State*, SystemOut*)`.
 
 | Function | Inputs | Notes |
 |---|---|---|
@@ -128,12 +130,12 @@ Exports: `M1`–`M13`, `compute_system_out(const State*, SystemOut*)`
 
 ---
 
-### SYSTEM.C / SYSTEM.H  ⚠
-**Full nonlinear macro-risk engine.**  
-Runs M-modules in two passes, applies AI damping, EMA smoothing,
-regime classification, and PONR probability.  
-Depends on: `modules.h`, `util.h`, `history.h`, `engine.h` ← **causes cycle with MODULES**  
-Exports: `init_default_params(Params*)`, `SYSTEM_engine(..., SystemOut*)`
+### **SYSTEM.C / SYSTEM.H**
+**Full nonlinear macro‑risk engine.**  
+Executes M‑modules in two passes, applies AI‑capex damping, EMA smoothing, regime classification, and PONR probability estimation.  
+Now depends on: **`modules.h`, `util.h`, `history.h`, `engine.h`** — with the previous circular dependency on MODULES removed in v1.11.  
+Exports: **`init_default_params(Params*)`**, `SYSTEM_engine(const State*, const Params*, SystemOut*)`.
+
 
 **Two-pass evaluation:**
 ```
@@ -143,12 +145,12 @@ Pass 2 (dependent):   M1(←M3), M2(←M5), M6(←M9)
 
 ---
 
-### DASH.C / DASH.H
-**XT-style dashboard UI.**  
-Centered 60-column layout; risk bars with color thresholds; two-page display.  
-⚠ `draw_dashboard()` calls itself recursively on page-flip — stack risk on 16KB DOS stack.  
-Depends on: `state.h`, `system.h`, `colors.h`  
-Exports: `draw_dashboard(const SystemOut*, const State*)`
+### **DASH.C / DASH.H**
+**XT‑style dashboard UI.**  
+Centered 60‑column layout with color‑coded risk bars and a clean BIOS‑text renderer.  
+Page‑flip recursion removed in v1.11 — `draw_dashboard()` is now non‑recursive and stack‑safe.  
+Depends on: **`state.h`**, **`system.h`**, **`colors.h`**  
+Exports: **`draw_dashboard(const SystemOut*, const State*)`**
 
 ---
 
@@ -195,7 +197,7 @@ No dependencies.
 
 ---
 
-## Known Issues
+## Known Issues (Fixed on V1.11)
 
 | # | File | Issue | Fix |
 |---|---|---|---|
@@ -208,18 +210,18 @@ No dependencies.
 ## Data Flow (happy path)
 
 ```
-startup
-  └─ run_intro()
-  └─ main menu loop
-       ├─ browse_scenarios() / manual_input() / load_scenario_file_multi()
-       │       └─ fills State
-       ├─ compute_system_out(State → SystemOut)   [MODULES]
-       │       └─ M3,M4,M5,M7,M9,M10,M13  (pass 1)
-       │       └─ M1,M2,M6               (pass 2)
-       │       └─ weighted sum → raw_stress
-       │       └─ AI damping → M8
-       │       └─ regime classification
-       └─ draw_dashboard(SystemOut, State)         [DASH]
+startup  
+  └─ run_intro()  
+  └─ main menu loop  
+       ├─ browse_scenarios() / manual_input() / load_scenario_file_multi()  
+       │       └─ fills **State**  
+       ├─ compute_system_out(State → SystemOut)   [MODULES]  
+       │       └─ M3, M4, M5, M7, M9, M10, M13  (pass 1)  
+       │       └─ M1, M2, M6                    (pass 2)  
+       │       └─ weighted sum → raw_stress  
+       │       └─ AI damping → M8  
+       │       └─ regime classification  
+       └─ draw_dashboard(SystemOut, State)       [DASH]
 ```
 
 ---
@@ -495,4 +497,48 @@ Systems engineer. 16 years industrial operations experience.  Building quantitat
 
 ---
 
-*QUANTXT v1.1 — May 19 2026*
+## Changelog
+QUANTXT v1.11 — Stability & Architecture Cleanup Release
+
+Release Date: May 2026
+
+Focus: Architecture cleanup, dependency fixes, dashboard stability, and UI alignment improvements.
+
+Overview
+Version 1.11 is a structural and stability-focused update that resolves long‑standing architectural issues, removes circular dependencies, stabilizes the dashboard renderer, and improves the visual layout of the XT‑style interface. This release does not change model logic — it strengthens the foundation the engine runs on.
+
+Key Fixes & Improvements
+1. Removed SYSTEM.H ↔ MODULES.H Circular Dependency
+Centralized all shared types (State, Scenario, Params, SystemOut) into state.h.
+
+modules.h and system.h now depend only on state.h, eliminating recursive include chains.
+
+Build is now deterministic under Watcom and easier to maintain.
+
+2. Removed Duplicate clip01() Implementation
+Deleted the shadowed static version inside modules.c.
+
+The engine now uses the canonical implementation from util.h.
+
+Prevents inconsistent clipping behavior across modules.
+
+3. Eliminated Recursive draw_dashboard() Call
+Removed the page‑flip recursion that previously caused stack growth.
+
+Dashboard rendering is now linear, predictable, and safe.
+
+4. Replaced Direct VRAM Writes With BIOS Text Rendering
+Removed fragile CGA memory writes that caused screen bleed and instability.
+
+Switched to _outtext()‑based rendering for full compatibility across DOSBox, CGA, EGA, and VGA.
+
+Dashboard is now flicker‑free and stable.
+
+5. Centered Bargraph Layout
+Introduced DASH_BAR_WIDTH and DASH_BAR_OFFSET for clean horizontal centering.
+
+Bars now align visually with the dashboard header and numeric columns.
+
+Produces a more balanced and readable XT‑style UI.
+
+*QUANTXT v1.11 — May 19 2026*
