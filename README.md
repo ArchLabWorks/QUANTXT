@@ -41,7 +41,7 @@ QUANTXT is a deterministic, nonlinear, multi-factor macro-financial simulation e
 
 It is currently an alpha demo. It is not a tutorial project. The goal is to build a deterministic analytical instrument — built to model US sovereign risk dynamics using real FRED macroeconomic data and market inputs, cross-referenced against contemporary macro frameworks including Paul Tudor Jones's bond market stress thesis and Garrett Jones's structural fiscal narrative. It is an attempt to build deterministic tooling for evaluating macroeconomic narratives under constrained and reproducible execution.
 
-The engine began as a YAML schema, was validated in Python, and was hardened into C89/8087 production code — with calibration tightening at each step, not loosening. The most constrained environment produced the most accurate results.
+The engine originated as a YAML schema, was prototyped in Python, and was then ported into C89/8087 with successive tightening of constraints and calibration at each stage. Rather than relaxing assumptions during implementation, each layer forced stricter determinism and more explicit modeling. The most constrained environment ultimately produced the most stable behavior.
 
 ---
 
