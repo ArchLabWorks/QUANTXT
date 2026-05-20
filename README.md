@@ -517,20 +517,6 @@ QUANTXT.EXE
 | FPU | Intel 8087 (or DOSBox emulation) |
 | RAM | 256 KB minimum |
 | Display | CGA |
-
-
----
-
-## Tested Environment
-
-| Component | Spec |
-|-----------|------|
-| Compiler | Open Watcom C V1.9 |
-| Target OS | DOS 3.3+ |
-| Hardware | IBM PC/XT or compatible |
-| FPU | Intel 8087 (or DOSBox emulation) |
-| RAM | 256 KB minimum |
-| Display | CGA |
 ```
 
 **Requirements:**
