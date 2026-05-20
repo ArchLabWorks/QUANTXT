@@ -12,7 +12,23 @@
 
 ---
 
-## What It Is
+## **QUANTXT — TL;DR**
+
+**QUANTXT** is a fully self‑contained **macro‑risk modeling engine** built in pure ANSI C89 for real DOS hardware.  
+It loads economic scenarios, runs a deterministic **13‑factor stress model**, applies nonlinear system transforms, and renders results in a clean XT‑style dashboard UI.
+
+- **Two‑pass stress engine** ([stress modules](ca://s?q=Explain_QUANTXT_stress_modules)) with damping, smoothing, and regime classification  
+- **Deterministic outputs** — no randomness, no external dependencies  
+- **Runs on DOS, DOSBox, and retro toolchains** ([build instructions](ca://s?q=Show_QUANTXT_build_instructions))  
+- **BIOS‑text dashboard** with centered layout and color‑coded risk bars  
+- **Lightweight, modular architecture** ([state.h](ca://s?q=Explain_QUANTXT_state_h)) as the shared root, no cycles  
+- **Educational reference implementation** showing how modern risk concepts fit into 1980s constraints
+
+QUANTXT is designed to be **transparent, inspectable, and easy to reason about** — a modern macro‑risk engine expressed through the simplicity of DOS‑era software engineering.
+
+---
+
+## What It Is (Long Version)
 
 QUANTXT is a deterministic, nonlinear, multi-factor macro-financial simulation engine implemented in C89 and executed on IBM XT-class hardware. It computes a sovereign risk index by aggregating 13 economic, political, and market-based factor modules through a weighted nonlinear pipeline with reflexive feedback.
 
