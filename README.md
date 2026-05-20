@@ -17,7 +17,7 @@
 **QUANTXT** is a fully self‑contained **macro‑risk modeling engine** built in pure ANSI C89 for real DOS hardware.  
 It loads economic scenarios, runs a deterministic **13‑factor stress model**, applies nonlinear system transforms, and renders results in a clean XT‑style dashboard UI.
 
-- **Two‑pass stress engine** ([stress modules](ca://s?q=Explain_QUANTXT_stress_modules)) with damping, smoothing, and regime classification  
+- **Two‑pass stress engine** [Explain QUANTXT stress modules](https://github.com/ArchitectureLLM/QUANTXT/blob/main/README.md#modulesc--modulesh) with damping, smoothing, and regime classification  
 - **Deterministic outputs** — no randomness, no external dependencies  
 - **Runs on DOS, DOSBox, and retro toolchains** ([build instructions](ca://s?q=Show_QUANTXT_build_instructions))  
 - **BIOS‑text dashboard** with centered layout and color‑coded risk bars  
