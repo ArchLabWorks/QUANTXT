@@ -244,6 +244,7 @@ startup
        │       └─ AI damping → M8  
        │       └─ regime classification  
        └─ draw_dashboard(SystemOut, State)       [DASH]
+
 ```
 
 ---
@@ -513,12 +514,12 @@ QUANTXT.EXE
 | Component | Spec |
 |-----------|------|
 | Compiler | Open Watcom C V1.9 |
-| Target OS | DOS 3.3+ |
+| Target OS | DOS 6.22 |
 | Hardware | IBM PC/XT or compatible |
 | FPU | Intel 8087 (or DOSBox emulation) |
 | RAM | 256 KB minimum |
 | Display | CGA |
-```
+
 
 **Requirements:**
 - Watcom C/C++ (`wcc` / `wlink`)
