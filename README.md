@@ -1,4 +1,5 @@
 # QUANTXT
+<img width="701" height="502" alt="Screenshot" src="https://github.com/user-attachments/assets/6860052d-75b7-4dee-8112-8c7e5b889415" />
 
 **Sovereign Risk Modeling Engine**  
 *C89 Standard· Watcom Open C V1.9 · Real-mode DOS · Intel 8087 FPU*
@@ -197,13 +198,16 @@ No dependencies.
 
 ---
 
-## Known Issues (Fixed on V1.11)
+## Known Issues (Resolved in v1.11)
 
-| # | File | Issue | Fix |
-|---|---|---|---|
-| 1 | `SYSTEM.H` ↔ `MODULES.H` | **Circular dependency** — `MODULES.H` includes `system.h` for `SystemOut`; `SYSTEM.C` includes `modules.h` | Move `SystemOut`/`Params` to `state.h`, or move `compute_system_out` into `SYSTEM.C` |
-| 2 | `MODULES.C` | **Duplicate `clip01`** — local `static` copy shadows `UTIL.C` version | Drop local copy, add `#include "util.h"` |
-| 3 | `DASH.C` | **Recursive `draw_dashboard()`** — page-flip calls itself, consuming stack | Restructure with internal loop or `goto` |
+| # | File | Issue | Status |
+|---|------|-------|--------|
+| 1 | `SYSTEM.H` ↔ `MODULES.H` | Circular dependency | **Fixed** — `Params` & `SystemOut` moved to `state.h` |
+| 2 | `MODULES.C` | Duplicate `clip01()` | **Fixed** — Now uses canonical version from `util.h` |
+| 3 | `DASH.C` | Recursive `draw_dashboard()` | **Fixed** — Converted to non-recursive page loop |
+
+All major architectural issues resolved in v1.11. The codebase is now clean and stable.
+
 
 ---
 
