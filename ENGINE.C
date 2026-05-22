@@ -1,3 +1,7 @@
+/* Copyright (c) 2026 ArchLabWorks/ArchitectureLabs
+   Licensed under the Apache License, Version 2.0.
+   See the LICENSE file in the project root for details. */
+
 /* engine.c -- QUANTXT v1.1 sovereign-risk scoring engine
  *
  * Weights derived via ordinary least squares regression
@@ -33,9 +37,9 @@
 #include "engine.h"    /* Provides run_engine() prototype */
 
 
-float run_engine(const State *st)
+double run_engine(const State *st)
 {
-    float score = 0.0f;
+    double score = 0.0f;
 
     /* --------------------------------------------------
      * OLS-calibrated weights -- all 19 fields
@@ -43,33 +47,33 @@ float run_engine(const State *st)
      * -------------------------------------------------- */
 
     /* Core macro-financial */
-    score += (float)(st->int_rev            * -0.1656);
-    score += (float)(st->debt_gdp           *  0.0894);
-    score += (float)(st->usd_reserve_share  * -0.0001); /* near zero */
-    score += (float)(st->cbo_deficit        * -0.0300);
-    score += (float)(st->xdate              * -0.0003);
+    score += (double)(st->int_rev            * -0.1656);
+    score += (double)(st->debt_gdp           *  0.0894);
+    score += (double)(st->usd_reserve_share  * -0.0001); /* near zero */
+    score += (double)(st->cbo_deficit        * -0.0300);
+    score += (double)(st->xdate              * -0.0003);
 
     /* Labor / cycle */
-    score += (float)(st->sahm               * -1.2980);
-    score += (float)(st->infl               *  4.1338);
-    score += (float)(st->unemp              *  2.5842);
-    score += (float)(st->gdp               *  -1.0617);
+    score += (double)(st->sahm               * -1.2980);
+    score += (double)(st->infl               *  4.1338);
+    score += (double)(st->unemp              *  2.5842);
+    score += (double)(st->gdp               *  -1.0617);
 
     /* Financial stress */
-    score += (float)(st->tail_risk          *  1.5414);
-    score += (float)(st->liq_gap            *  0.2032);
-    score += (float)(st->ofr               *  -0.0242);
-    score += (float)(st->hy_spread          * -0.0517);
-    score += (float)(st->dxy_mom            *  0.1018);
-    score += (float)(st->oil_price          * -0.0027);
+    score += (double)(st->tail_risk          *  1.5414);
+    score += (double)(st->liq_gap            *  0.2032);
+    score += (double)(st->ofr               *  -0.0242);
+    score += (double)(st->hy_spread          * -0.0517);
+    score += (double)(st->dxy_mom            *  0.1018);
+    score += (double)(st->oil_price          * -0.0027);
 
     /* Technology / reflexivity */
-    score += (float)(st->ai_capex           * -0.7323);
-    score += (float)(st->lagged_ai          *  0.7827);
+    score += (double)(st->ai_capex           * -0.7323);
+    score += (double)(st->lagged_ai          *  0.7827);
 
     /* Geopolitical / sentiment */
-    score += (float)(st->geopolitical_risk  * -0.2550);
-    score += (float)(st->investor_sentiment *  0.3624);
+    score += (double)(st->geopolitical_risk  * -0.2550);
+    score += (double)(st->investor_sentiment *  0.3624);
 
     /* Clamp to [0, 1] */
     if (score < 0.0f) score = 0.0f;

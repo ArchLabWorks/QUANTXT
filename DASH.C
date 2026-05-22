@@ -1,3 +1,7 @@
+/* Copyright (c) 2026 ArchLabWorks/ArchitectureLabs
+   Licensed under the Apache License, Version 2.0.
+   See the LICENSE file in the project root for details. */
+
 /* dash.c -- QUANTXT fiscal dominance dashboard */
 
 #include <graph.h>
@@ -99,7 +103,7 @@ void draw_dashboard(const SystemOut *o, const State *s)
     /* ---- HEADER ---- */
     _settextcolor(COL_HEADER);
     _settextposition(1, DASH_OFFSET + 17);
-    _outtext("QUANTXT v1.1");
+    _outtext("QUANTXT v1.12");
     _settextposition(2, DASH_OFFSET + 12);
     _outtext("FISCAL DOMINANCE DASHBOARD");
     _settextcolor(COL_NORMAL);

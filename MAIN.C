@@ -1,3 +1,7 @@
+/* Copyright (c) 2026 ArchLabWorks/ArchitectureLabs
+   Licensed under the Apache License, Version 2.0.
+   See the LICENSE file in the project root for details. */
+
 #include <graph.h>
 #include <conio.h>
 #include <stdio.h>
@@ -40,30 +44,36 @@ int main(void)
 
     for (;;) {
         _clearscreen(_GCLEARSCREEN);
-        _settextcolor(COL_HEADER);
+        _settextcolor(COL_NORMAL);
 
         /* Title */
         _settextposition(MENU_TOP, MENU_COL);
-        _outtext("QUANTXT v1.11 (IBM PC XT Edition)");
+        _outtext("QUANTXT v1.12 (IBM PC XT Edition)");
 
         /* Menu items */
         _settextposition(MENU_TOP + 2, MENU_COL);
+        _settextcolor(COL_HEADER);
         _outtext("1) Browse scenarios");
 
         _settextposition(MENU_TOP + 3, MENU_COL);
+        _settextcolor(COL_HEADER);
         _outtext("2) Manual input");
 
         _settextposition(MENU_TOP + 4, MENU_COL);
-        _outtext("3) Load scenario file (.TXT)");
+        _settextcolor(COL_HEADER);
+        _outtext("3) Load scenario file");
 
         _settextposition(MENU_TOP + 5, MENU_COL);
-        _outtext("4) Run calibration (CALIB.TXT)");
+        _settextcolor(COL_HEADER);
+        _outtext("4) Run calibration file");
 
         _settextposition(MENU_TOP + 6, MENU_COL);
+        _settextcolor(COL_HEADER);
         _outtext("ESC) Exit");
 
         /* Prompt */
         _settextposition(MENU_TOP + 8, MENU_COL);
+        _settextcolor(COL_NORMAL);
         _outtext("Select option: ");
 
 
@@ -121,31 +131,54 @@ int main(void)
         }
         else if (ch == '4') {
             /* -------------------------------
-               RUN CALIBRATION MODE
+            RUN CALIBRATION MODE
             ------------------------------- */
-            ok = qxcalib_run("CALIB.TXT", "CALIB_RESULT.TXT", &r);
+            if (!browse_txt_files(filename)) continue;
 
+            /* --- in progress screen --- */
             _clearscreen(_GCLEARSCREEN);
-            _settextposition(1, 1);
-            _settextcolor(COL_HEADER);
 
+            _settextcolor(COL_HEADER);
+            _settextposition(MENU_TOP,     MENU_COL);
+            _outtext("QUANTXT CALIBRATION");
+
+            _settextcolor(COL_NORMAL);
+            _settextposition(MENU_TOP + 1, MENU_COL);
+            _outtext("----------------------------------------");
+
+            _settextposition(MENU_TOP + 3, MENU_COL);
+            _outtext("File : ");
+            _outtext(filename);
+
+            _settextcolor(COL_HEADER + 16);          /* blinking */
+            _settextposition(MENU_TOP + 5, MENU_COL);
+            _outtext("Calibration in progress...");
+
+            _settextcolor(COL_NORMAL);
+            _settextposition(MENU_TOP + 7, MENU_COL);
+            _outtext("Please wait. Do not power off.");
+
+            _settextposition(MENU_TOP + 10, MENU_COL);
+            _outtext("----------------------------------------");
+
+            /* --- run --- */
+            ok = qxcalib_run(filename, "CALIB_RESULT.TXT", &r);
+
+            /* --- result --- */
             if (ok == 0) {
-                _outtext("Calibration complete.");
-                _settextcolor(COL_NORMAL);
-                _settextposition(3, 1);
-                printf("Rows tested : %d\n",    r.rows);
-                printf("Total error : %.6f\n",  r.total_error);
-                printf("Mean error  : %.6f\n\n",r.mean_error);
-                printf("Results saved to CALIB_RESULT.TXT\n");
+                qxcalib_display(&r);
             } else {
+                _clearscreen(_GCLEARSCREEN);
+                _settextposition(1, 1);
+                _settextcolor(COL_WARNING);
                 _outtext("Calibration failed.");
                 _settextcolor(COL_NORMAL);
                 _settextposition(3, 1);
-                printf("Check CALIB.TXT format.\n");
+                printf("Could not open: %s\n", filename);
+                printf("Check file format.\n");
+                printf("\nPress any key...");
+                getch();
             }
-
-            printf("\nPress any key to return to menu...");
-            getch();
             continue;
         }
         else {

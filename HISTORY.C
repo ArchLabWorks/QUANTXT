@@ -1,3 +1,7 @@
+/* Copyright (c) 2026 ArchLabWorks/ArchitectureLabs
+   Licensed under the Apache License, Version 2.0.
+   See the LICENSE file in the project root for details. */
+
 #include "history.h"
 
 void history_reset(History *h)

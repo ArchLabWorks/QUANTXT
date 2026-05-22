@@ -1,3 +1,7 @@
+/* Copyright (c) 2026 ArchLabWorks/ArchitectureLabs
+   Licensed under the Apache License, Version 2.0.
+   See the LICENSE file in the project root for details. */
+
 #include <graph.h>
 #include <bios.h>
 #include <string.h>
@@ -151,7 +155,7 @@ static void draw_text(void)
 {
     _settextcolor(1);
 
-    center_text(21, "QUANTXT v1.11 Macro-Risk Modeling Engine");
+    center_text(21, "QUANTXT v1.12 Macro-Risk Modeling Engine");
     center_text(22, "IBM PC/XT Compatible CGA Mode 6");
     center_text(23, "(C) 2026 QUANTXT Research Labs");
 }
