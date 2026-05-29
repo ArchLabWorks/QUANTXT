@@ -103,7 +103,7 @@ void draw_dashboard(const SystemOut *o, const State *s)
     /* ---- HEADER ---- */
     _settextcolor(COL_HEADER);
     _settextposition(1, DASH_OFFSET + 17);
-    _outtext("QUANTXT v1.12");
+    _outtext("QUANTXT v1.14");
     _settextposition(2, DASH_OFFSET + 12);
     _outtext("FISCAL DOMINANCE DASHBOARD");
     _settextcolor(COL_NORMAL);

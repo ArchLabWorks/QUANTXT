@@ -9,11 +9,11 @@
 #include "modules.h"
 #include "util.h"
 #include "engine.h"
-
-
+#include "calibpar.h"
 
 /* ---------------------------------------------------------
  * Initialize default model parameters
+ * (Legacy nonlinear engine only — NOT used by OLS engine)
  * --------------------------------------------------------- */
 void init_default_params(Params *p)
 {
@@ -29,13 +29,63 @@ void init_default_params(Params *p)
     p->m10_w = 0.10;
     p->m13_w = 0.15;
 
-    p->hysteresis          = 0.82;
+    p->hysteresis           = 0.82;
     p->terminal_persistence = 0.7;
-    p->raw_c               = 1.0;
+    p->raw_c                = 1.0;
 }
 
 /* ---------------------------------------------------------
- * SYSTEM_engine — main nonlinear macro‑risk engine
+ * compute_system_out — calibrated OLS-engine shim
+ *
+ * NEW SIGNATURE:
+ *     compute_system_out(const State *s,
+ *                        const CalibParams *p,
+ *                        SystemOut *o)
+ *
+ * This is the ONLY scoring path used by MAIN.C and DASH.C.
+ * --------------------------------------------------------- */
+void compute_system_out(const State *s,
+                        const CalibParams *p,
+                        SystemOut *o)
+{
+    double score;
+
+    memset(o, 0, sizeof(SystemOut));
+
+    /* --- calibrated engine call --- */
+    score = run_engine(s, p);
+
+    /* Direct OLS score */
+    o->M8         = score;
+    o->raw_stress = score;
+
+    /* Informational AI-damping display */
+    o->ai_damping = 1.0 / (1.0 + s->ai_capex);
+
+    /* Debt-pressure bar */
+    o->debt_pressure =
+        clip01(s->debt_gdp / 200.0) * 0.5 +
+        clip01(s->int_rev  /  30.0) * 0.5;
+
+    /* Regime classification (matches calibration report) */
+    if (score >= 0.85)
+        strcpy(o->regime, "Severe");
+    else if (score >= 0.65)
+        strcpy(o->regime, "Crisis");
+    else if (score >= 0.40)
+        strcpy(o->regime, "Stress");
+    else if (score >= 0.20)
+        strcpy(o->regime, "Medium");
+    else
+        strcpy(o->regime, "Low");
+
+    o->ponr_probability  = clip01(score - 0.7);
+    o->stress_dispersion = 0.0;   /* OLS has no dispersion model */
+}
+
+/* ---------------------------------------------------------
+ * SYSTEM_engine — nonlinear macro-risk engine (research use)
+ * Unchanged — not used by MAIN.C or dashboard.
  * --------------------------------------------------------- */
 void SYSTEM_engine(
     const State *s,
@@ -46,20 +96,10 @@ void SYSTEM_engine(
     int periods_above,
     SystemOut *o
 ) {
-    /* Ensure all fields are initialized */
-    memset(o, 0, sizeof(SystemOut));
+    (void)reflexive_mode;
+    (void)periods_above;
 
-    /*
-     * Correct module evaluation order:
-     *
-     * Pass 1 — independent modules:
-     *   M3, M4, M5, M7, M9, M10, M13
-     *
-     * Pass 2 — dependent modules:
-     *   M1 (needs M3)
-     *   M2 (needs M5)
-     *   M6 (needs M9)
-     */
+    memset(o, 0, sizeof(SystemOut));
 
     /* Pass 1 */
     o->M3  = M3(s->xdate, s->cbo_deficit);
@@ -81,26 +121,23 @@ void SYSTEM_engine(
         p->m4_w  * o->M4  + p->m5_w  * o->M5  + p->m6_w  * o->M6  +
         p->m7_w  * o->M7  + p->m10_w * o->M10 + p->m13_w * o->M13;
 
-    /* AI damping (M9) */
+    /* AI damping */
     o->ai_damping = 1.0 - p->ai_coef * o->M9;
     if (o->ai_damping < 0.0) o->ai_damping = 0.0;
 
-    /* Composite stress score */
+    /* Composite stress */
     o->M8 = clip01(o->raw_stress * o->ai_damping);
 
-    /* EMA smoothing */
     if (has_prev) {
         o->M8 = p->terminal_persistence * prev_M8 +
                 (1.0 - p->terminal_persistence) * o->M8;
     }
 
-    /* Regime classification */
     if (o->M8 > p->hysteresis)
         strcpy(o->regime, "High Risk");
     else
         strcpy(o->regime, "Normal");
 
-    /* Derived outputs */
     o->ponr_probability  = clip01(o->M8 - 0.7);
     o->stress_dispersion = 0.1;
     o->debt_pressure     = o->M1 + o->M3;

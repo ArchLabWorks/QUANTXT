@@ -6,28 +6,6 @@
 #define STATE_H
 
 /* =====================================================
-   SCENARIO — preset or user-defined macro state
-   ===================================================== */
-typedef struct {
-    char   name[32];
-    double int_rev;
-    double debt_gdp;
-    double usd_reserve_share;
-    double cbo_deficit;
-    double xdate;
-    double sahm;
-    double tail_risk;
-    double liq_gap;
-    double ofr;
-    double hy_spread;
-    double dxy_mom;
-    double oil_price;
-    double ai_capex;
-    double geopolitical_risk;
-    double investor_sentiment;
-} Scenario;
-
-/* =====================================================
    STATE — live macroeconomic input vector
    ===================================================== */
 typedef struct {

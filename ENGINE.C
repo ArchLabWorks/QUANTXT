@@ -2,82 +2,111 @@
    Licensed under the Apache License, Version 2.0.
    See the LICENSE file in the project root for details. */
 
-/* engine.c -- QUANTXT v1.1 sovereign-risk scoring engine
+/* engine.c -- QUANTXT v1.2 sovereign-risk scoring engine
  *
- * Weights derived via ordinary least squares regression
- * against 30-point CALIB.TXT precedent table, all 19 fields.
+ * Weights derived via Ridge regression (L2, lambda=2.0)
+ * against 46-scenario CALIB2.TXT precedent table, all 19 fields.
  *
- * Calibration results with these weights:
- *   SSE  : 0.012154
- *   MSE  : 0.000405
- *   RMSE : 0.020128
+ * Ridge is used instead of plain OLS because the feature set
+ * contains strong multicollinearity clusters (tail_risk, ofr,
+ * liq_gap, inv_sent, hy_spread, sahm are highly intercorrelated).
+ * Plain OLS at 46 rows produces sign-flipped weights on 7 of 19
+ * features due to the collinearity. Ridge at lambda=2.0 reduces
+ * flips to 1 (unemp, small magnitude) with acceptable RMSE cost.
+ *
+ * Calibration results with these weights (46 scenarios):
+ *   SSE  : 0.306674
+ *   RMSE : 0.081651
+ *   Bias : -0.001126  (near-zero -- no systematic over/under)
+ *   Max over-predict  : +0.1603
+ *   Max under-predict : -0.2185
  *
  * Calibration history:
- *   Hand-assigned (19 fields) : RMSE 0.368   (baseline)
- *   OLS  6-field              : RMSE 0.044   (71x improvement)
- *   OLS 19-field              : RMSE 0.020   (further 2.2x)
+ *   Hand-assigned (19 fields)          : RMSE 0.368  (baseline)
+ *   OLS 6-field (30-pt dataset)        : RMSE 0.044
+ *   OLS 19-field (30-pt dataset)       : RMSE 0.020
+ *   OLS 19-field (14-pt CALIB2)        : RMSE 0.493  (sign errors)
+ *   Ridge lambda=2.0 (46-pt CALIB2)    : RMSE 0.082  (current)
  *
- * Key findings from OLS:
- *   - tail_risk (+1.54) is the dominant stress signal
- *   - infl (+4.13) is the dominant positive macro driver
- *   - ai_capex (-0.73) dampens stress; lagged_ai (+0.78)
- *     has a slight reflexive amplification effect
- *   - usd_reserve_share (~0.00) has negligible independent
- *     predictive power when other variables are present
- *   - sahm flips sign once tail_risk enters the model,
- *     indicating collinearity between the two signals
+ * Key findings from this calibration:
+ *   - tail_risk (+0.23) remains the dominant stress signal
+ *   - hy_spread (+0.17), liq_gap (-0.14), ofr (+0.12),
+ *     geo_risk (+0.12), inv_sent (-0.12) are the next tier
+ *   - sahm is now correctly positive (+0.079)
+ *   - int_rev is now correctly positive (+0.036)
+ *   - ai_capex is now correctly positive (+0.007); the prior
+ *     negative weight was an artefact of the old training set
+ *   - An intercept term (+0.286) is required -- the feature
+ *     space does not pass through the origin
+ *   - unemp retains a small sign flip (-0.008 vs r=+0.38)
+ *     due to residual collinearity with inv_sent; magnitude
+ *     is negligible and does not materially affect scores
  *
- * To recalibrate: update CALIB.TXT and re-run OLS solver.
+ * To recalibrate: update CALIB2.TXT and re-run ridge solver
+ * (lambda=2.0). Increase lambda if sign flips reappear after
+ * adding new scenarios; decrease toward 1.0 if RMSE is too high.
  */
+
+/* engine.c -- QUANTXT v1.2 sovereign-risk scoring engine */
 
 #include <math.h>
 #include <stdio.h>
 
-#include "state.h"     /* Provides State, Params */
-#include "engine.h"    /* Provides run_engine() prototype */
+#include "state.h"
+#include "calibpar.h"   /* NEW: model parameters */
+#include "engine.h"
 
-
-double run_engine(const State *st)
+/* ---------------------------------------------------------
+ * run_engine -- parameterized scoring engine
+ * --------------------------------------------------------- */
+double run_engine(const State *s, const CalibParams *p)
 {
-    double score = 0.0f;
+    double score = 0.0;
 
     /* --------------------------------------------------
-     * OLS-calibrated weights -- all 19 fields
-     * Derived from 30-point full-spectrum precedent set
+     * Ridge-calibrated weights (lambda=2.0)
+     * Fitted against 46-scenario CALIB2.TXT dataset
+     *
+     * NOTE:
+     *   These weights remain hardcoded for now.
+     *   Future versions may replace them with p->fields.
      * -------------------------------------------------- */
 
+    /* Intercept */
+    score += 0.2862;
+
     /* Core macro-financial */
-    score += (double)(st->int_rev            * -0.1656);
-    score += (double)(st->debt_gdp           *  0.0894);
-    score += (double)(st->usd_reserve_share  * -0.0001); /* near zero */
-    score += (double)(st->cbo_deficit        * -0.0300);
-    score += (double)(st->xdate              * -0.0003);
+    score += s->int_rev           *  0.0362;
+    score += s->debt_gdp          *  0.0096;
+    score += s->usd_reserve_share *  0.0004;
+    score += s->cbo_deficit       *  0.0059;
+    score += s->xdate             * -0.0002;
 
     /* Labor / cycle */
-    score += (double)(st->sahm               * -1.2980);
-    score += (double)(st->infl               *  4.1338);
-    score += (double)(st->unemp              *  2.5842);
-    score += (double)(st->gdp               *  -1.0617);
+    score += s->sahm              *  0.0792;
+    score += s->infl              *  0.0045;
+    score += s->unemp             * -0.0077;
+    score += s->gdp               * -0.0101;
 
     /* Financial stress */
-    score += (double)(st->tail_risk          *  1.5414);
-    score += (double)(st->liq_gap            *  0.2032);
-    score += (double)(st->ofr               *  -0.0242);
-    score += (double)(st->hy_spread          * -0.0517);
-    score += (double)(st->dxy_mom            *  0.1018);
-    score += (double)(st->oil_price          * -0.0027);
+    score += s->tail_risk         *  0.2315;
+    score += s->liq_gap           * -0.1377;
+    score += s->ofr               *  0.1194;
+    score += s->hy_spread         *  0.1674;
+    score += s->dxy_mom           *  0.0001;
+    score += s->oil_price         *  0.0008;
 
     /* Technology / reflexivity */
-    score += (double)(st->ai_capex           * -0.7323);
-    score += (double)(st->lagged_ai          *  0.7827);
+    score += s->ai_capex          *  0.0066;
+    score += s->lagged_ai         *  0.0098;
 
     /* Geopolitical / sentiment */
-    score += (double)(st->geopolitical_risk  * -0.2550);
-    score += (double)(st->investor_sentiment *  0.3624);
+    score += s->geopolitical_risk *  0.1238;
+    score += s->investor_sentiment* -0.1205;
 
     /* Clamp to [0, 1] */
-    if (score < 0.0f) score = 0.0f;
-    if (score > 1.0f) score = 1.0f;
+    if (score < 0.0) score = 0.0;
+    if (score > 1.0) score = 1.0;
 
     return score;
 }

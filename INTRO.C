@@ -4,6 +4,7 @@
 
 #include <graph.h>
 #include <bios.h>
+#include <conio.h>
 #include <string.h>
 
 /* ---------------------------------------------------------
@@ -144,7 +145,10 @@ static void scanline_fade(void)
         _setcolor(1);
         _moveto(0, y);
         _lineto(639, y);
-        wait_ticks(1); /* ~55 ms per scanline pair */
+        /* No wait_ticks() here: the draw loop itself provides visible
+         * progression. On real XT hardware the per-line CGA write is
+         * slow enough; on DOSBox the loop completes instantly which is
+         * preferable to a multi-second block at low cycle counts. */
     }
 }
 
@@ -155,7 +159,7 @@ static void draw_text(void)
 {
     _settextcolor(1);
 
-    center_text(21, "QUANTXT v1.12 Macro-Risk Modeling Engine");
+    center_text(21, "QUANTXT v1.14 Macro-Risk Modeling Engine");
     center_text(22, "IBM PC/XT Compatible CGA Mode 6");
     center_text(23, "(C) 2026 QUANTXT Research Labs");
 }
@@ -176,7 +180,14 @@ void run_intro(void)
     wait_ticks(10);
 
     draw_text();
-    wait_ticks(40); /* hold for ~2 seconds */
+
+    /* Hold for ~2 seconds; any keypress skips immediately */
+    {
+        unsigned long start = read_ticks();
+        while ((read_ticks() - start) < 36UL) {  /* 36 ticks ~ 2 s */
+            if (kbhit()) { getch(); break; }
+        }
+    }
 
     _setvideomode(_DEFAULTMODE);
 }

@@ -5,6 +5,7 @@
 #include <graph.h>
 #include <conio.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "colors.h"
 #include "state.h"
@@ -16,12 +17,12 @@
 #include "dash.h"
 #include "qxcalib.h"
 #include "intro.h"
-
+#include "modload.h"     /* model parameter loader */
 
 #define LOGO_LEFT      35
-#define LOGO_COL       (LOGO_LEFT / 8)   /* 8px BIOS font width */
+#define LOGO_COL       (LOGO_LEFT / 8)
 
-#define MENU_WIDTH   40   /* longest menu line */
+#define MENU_WIDTH   40
 #define MENU_COL     (LOGO_COL + ( (80 - LOGO_COL) - MENU_WIDTH ) / 2 )
 
 #define MENU_HEIGHT   7
@@ -39,6 +40,16 @@ int main(void)
     QXCalibResult r;
     double        lagged_ai = 0.0;
 
+    /* ---------------------------------------------
+       Load calibrated model parameters (MODL.TXT)
+       --------------------------------------------- */
+    CalibParams model_params = {
+        0.85, 0.72, 1.20, 0.90, 0.50,
+        0.30, 0.80, 0.40, 1.10
+    };
+
+    load_model_params("MODL.TXT", &model_params);
+
     _setvideomode(_TEXTC80);
     run_intro();
 
@@ -46,37 +57,28 @@ int main(void)
         _clearscreen(_GCLEARSCREEN);
         _settextcolor(COL_NORMAL);
 
-        /* Title */
         _settextposition(MENU_TOP, MENU_COL);
-        _outtext("QUANTXT v1.12 (IBM PC XT Edition)");
+        _outtext("QUANTXT v1.14 (IBM PC XT Edition)");
 
-        /* Menu items */
         _settextposition(MENU_TOP + 2, MENU_COL);
         _settextcolor(COL_HEADER);
         _outtext("1) Browse scenarios");
 
         _settextposition(MENU_TOP + 3, MENU_COL);
-        _settextcolor(COL_HEADER);
         _outtext("2) Manual input");
 
         _settextposition(MENU_TOP + 4, MENU_COL);
-        _settextcolor(COL_HEADER);
         _outtext("3) Load scenario file");
 
         _settextposition(MENU_TOP + 5, MENU_COL);
-        _settextcolor(COL_HEADER);
         _outtext("4) Run calibration file");
 
         _settextposition(MENU_TOP + 6, MENU_COL);
-        _settextcolor(COL_HEADER);
         _outtext("ESC) Exit");
 
-        /* Prompt */
         _settextposition(MENU_TOP + 8, MENU_COL);
         _settextcolor(COL_NORMAL);
         _outtext("Select option: ");
-
-
 
         ch = getch();
 
@@ -84,14 +86,21 @@ int main(void)
             break;
         }
         else if (ch == '1') {
+
             idx = browse_scenarios();
             if (idx < 0) continue;
+
+            /* Apply calibrated model parameters */
+            memcpy(&scenarios[idx].params, &model_params, sizeof(CalibParams));
+
             fill_state_from_scenario(&scenarios[idx], &s, lagged_ai);
         }
         else if (ch == '2') {
+
             manual_input(&s);
         }
         else if (ch == '3') {
+
             if (browse_txt_files(filename)) {
                 added = load_scenario_file_multi(filename);
 
@@ -103,7 +112,6 @@ int main(void)
                     _outtext("Scenarios loaded. Entering browser...");
                     _settextcolor(COL_NORMAL);
 
-                    /* brief pause */
                     {
                         volatile long d;
                         for (d = 0; d < 200000L; d++);
@@ -111,8 +119,13 @@ int main(void)
 
                     idx = browse_scenarios();
                     if (idx >= 0) {
+
+                        /* Apply calibrated params to loaded scenario */
+                        memcpy(&scenarios[idx].params, &model_params, sizeof(CalibParams));
+
                         fill_state_from_scenario(&scenarios[idx], &s, lagged_ai);
-                        compute_system_out(&s, &o);
+
+                        compute_system_out(&s, &model_params, &o);
                         draw_dashboard(&o, &s);
                         lagged_ai = s.ai_capex;
                     }
@@ -130,16 +143,13 @@ int main(void)
             continue;
         }
         else if (ch == '4') {
-            /* -------------------------------
-            RUN CALIBRATION MODE
-            ------------------------------- */
+
             if (!browse_txt_files(filename)) continue;
 
-            /* --- in progress screen --- */
             _clearscreen(_GCLEARSCREEN);
 
             _settextcolor(COL_HEADER);
-            _settextposition(MENU_TOP,     MENU_COL);
+            _settextposition(MENU_TOP, MENU_COL);
             _outtext("QUANTXT CALIBRATION");
 
             _settextcolor(COL_NORMAL);
@@ -150,7 +160,7 @@ int main(void)
             _outtext("File : ");
             _outtext(filename);
 
-            _settextcolor(COL_HEADER + 16);          /* blinking */
+            _settextcolor(COL_HEADER + 16);
             _settextposition(MENU_TOP + 5, MENU_COL);
             _outtext("Calibration in progress...");
 
@@ -161,10 +171,8 @@ int main(void)
             _settextposition(MENU_TOP + 10, MENU_COL);
             _outtext("----------------------------------------");
 
-            /* --- run --- */
-            ok = qxcalib_run(filename, "CALIB_RESULT.TXT", &r);
+            ok = qxcalib_run(filename, "CALIB_RE.TXT", &r);
 
-            /* --- result --- */
             if (ok == 0) {
                 qxcalib_display(&r);
             } else {
@@ -185,10 +193,10 @@ int main(void)
             continue;
         }
 
-        compute_system_out(&s, &o);
+        compute_system_out(&s, &model_params, &o);
         draw_dashboard(&o, &s);
 
-        lagged_ai = s.ai_capex; /* simple lag example */
+        lagged_ai = s.ai_capex;
     }
 
     _setvideomode(_DEFAULTMODE);
