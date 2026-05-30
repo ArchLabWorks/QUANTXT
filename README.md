@@ -706,48 +706,48 @@ file browser improvements, and UI stability fixes.
 QUANTXT V1.13
 ========================================
 
-### INITIAL STATE
+# INITIAL STATE
 - Codebase: 12 C files, 13 H files
 - Calibration data: 14 scenarios (underdetermined for 19-feature OLS)
 - Critical bugs: 4 identified (RMSE corruption, M4 normalization, dual engine paths, boot hang)
 
-### SESSION 1: BUG IDENTIFICATION
+  SESSION 1: BUG IDENTIFICATION
 - RMSE writer emitting MSE instead of sqrt(MSE) — file output 4× too small
 - M4 normalization formula wrong (assumes 40–80 range, got 0–1 normalized input)
 - Two separate scoring engines: run_engine() vs compute_system_out() with different inputs
 - Scenario struct missing 4 fields (lagged_ai, infl, unemp, gdp) required by OLS engine
 
-### SESSION 2: MODEL UNIFICATION
+ SESSION 2: MODEL UNIFICATION
 - Extended Scenario/State structs to 19 fields (full parity)
 - Updated all loaders: manual_input(), load_scenario_file_multi(), built-in initializers
 - Unified scoring path: all entry points → run_engine() (OLS)
 - Fixed RMSE file writer
 - Aligned regime thresholds across all modules
 
-# SESSION 3: BUILD WARNINGS
+ SESSION 3: BUILD WARNINGS
 - Removed duplicate compute_system_out() from MODULES.C (linker W1027)
 - Added void casts for unused parameters in SYSTEM_engine() (Watcom W303)
 - Clean build: Open Watcom 1.9
 
-# SESSION 4–5: BOOT HANG FIX
+ SESSION 4–5: BOOT HANG FIX
 - Root cause: _bios_timeofday() INT 1Ah not live during init on DOSBox
 - Completely rewrote INTRO.C: removed BIOS timing, used interrupt-independent spin loop (busy_delay)
 - Introduced DELAY_UNIT constant for environment tuning
 - Program now boots reliably on target XT/DOSBox combo
 
-# SESSION 6: CALIBRATION DATA EXPANSION
+ SESSION 6: CALIBRATION DATA EXPANSION
 - Original 14 scenarios insufficient (underdetermined OLS)
 - Added 32 new scenarios (46 total) covering all 5 risk regimes
 - Balanced distribution: Low(9) / Medium(10) / Stress(10) / Crisis(8) / Severe(9)
 - Scenarios mapped to historical archetypes and stress tests
 - Ready for re-calibration with stable OLS solution
 
-# OUTSTANDING (for next session)
+ OUTSTANDING (for next session)
 - Re-run OLS on 46-row dataset to produce corrected ENGINE.C weights
 - Add scenario name= fields to CALIB2.TXT
 - Decide fate of SYSTEM_engine() (wire up or remove)
 
-# BUILD & TEST STATUS
+ BUILD & TEST STATUS
 - Compiler: Open Watcom 1.9 (2.0 rejected — boot hang issue)
 - Platform: DOS large model, XT/DOSBox target
 - Boot: Fixed — no more hangs
@@ -759,18 +759,18 @@ QUANTXT V1.13
 
 ## Critical Fixes
 
-### 1. **Parameter Initialization & MODL.TXT Corruption**
+ 1. **Parameter Initialization & MODL.TXT Corruption**
 - **Issue**: Uninitialized CalibParams in qxcalib_run() led to garbage values in MODL.TXT
 - **Fix**: Added safe default initialization (0.85, 0.72, 1.20, ...) before loading from disk
 - **Impact**: Calibration now produces valid, stable model parameters on every run
 
-### 2. **Build System Stability (C89/Watcom C 1.9)**
+ 2. **Build System Stability (C89/Watcom C 1.9)**
 - Resolved duplicate typedef conflicts (CalibParamsTag, Scenario)
 - Added include guards to prevent redeclaration
 - Cleaned scenario.c to eliminate struct assignments and static initializers with non-constants
 - **Result**: Clean compile with zero critical warnings on IBM PC XT target
 
-### 3. **Engine Signature Correction**
+ 3. **Engine Signature Correction**
 - Fixed run_engine() calls in qxcalib_compute() to pass both State and CalibParams
 - Aligned all engine invocations across main.c, qxcalib.c, and dashboard code
 - **Impact**: Consistent parameter flow through calibration and execution paths
