@@ -6,11 +6,13 @@
 #define ENGINE_H
 
 #include "state.h"
+#include "calibpar.h"
 
 /*
  * Core QUANTXT evaluation function.
- * Takes a fully-populated State and returns a float score.
+ * Takes a fully-populated State and a CalibParams block,
+ * and returns a double score in [0, 1].
  */
-double run_engine(const State *st);
+double run_engine(const State *st, const CalibParams *p);
 
-#endif
+#endif /* ENGINE_H */

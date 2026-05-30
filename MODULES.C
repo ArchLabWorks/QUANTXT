@@ -94,50 +94,5 @@ double M13(double investor_sentiment)
     return s;
 }
 
-/* ---------------------------------------------------------
- * System-level aggregator
- * --------------------------------------------------------- */
-void compute_system_out(const State *s, SystemOut *o)
-{
-    double m3  = M3(s->xdate, s->cbo_deficit);
-    double m1  = M1(s->int_rev, m3);
-    double m5  = M5(s->ofr, s->hy_spread);
-    double m2  = M2(s->tail_risk, s->liq_gap, m5);
-    double m9  = M9(s->ai_capex);
-    double m6  = M6(s->sahm, m9, s->lagged_ai);
-    double m4  = M4(s->usd_reserve_share);
-    double m7  = M7(s->dxy_mom, s->oil_price);
-    double m10 = M10(s->geopolitical_risk);
-    double m13 = M13(s->investor_sentiment);
-
-    /* simple composite */
-    double raw =
-        0.15 * m1  +
-        0.15 * m2  +
-        0.10 * m3  +
-        0.10 * m4  +
-        0.10 * m5  +
-        0.10 * m6  +
-        0.10 * m7  +
-        0.10 * m10 +
-        0.10 * m13;
-
-    o->raw_stress = raw;
-    o->ai_damping = 1.0 / (1.0 + s->ai_capex);
-    o->M8         = o->raw_stress * o->ai_damping;
-
-    /* debt_pressure for dashboard */
-    o->debt_pressure = clip01(s->debt_gdp / 200.0) * 0.5 +
-                       clip01(s->int_rev / 30.0) * 0.5;
-
-    if (o->M8 < 0.8) {
-        strcpy(o->regime, "Calm");
-        o->ponr_probability = 0.05;
-    } else if (o->M8 < 1.5) {
-        strcpy(o->regime, "Watch");
-        o->ponr_probability = 0.20;
-    } else {
-        strcpy(o->regime, "Stress");
-        o->ponr_probability = 0.50;
-    }
-}
+/* compute_system_out() has moved to SYSTEM.C.
+ * It now calls run_engine() (OLS) as the single scoring path. */

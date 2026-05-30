@@ -10,6 +10,7 @@
 #include "state.h"
 #include "engine.h"
 #include "colors.h"
+#include "modload.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -27,6 +28,11 @@ typedef struct {
     int    has_target;
     char   name[32];        /* scenario name for per-row report */
 } QXCalibRow;
+
+/* forward declaration for model writer */
+static int qxcalib_write_model(const char *filename,
+                               const CalibParams *oldp,
+                               const QXCalibResult *r);
 
 /* ----------------------------------------------------------------
    field assignment (float casts removed -- State fields are double)
@@ -117,7 +123,7 @@ static const char *regime_label(int r)
    ---------------------------------------------------------------- */
 
 static void qxcalib_finalize_row(QXCalibRow *rows, int *count,
-                                  QXCalibRow *cur)
+                                 QXCalibRow *cur)
 {
     if (!cur->has_target)           return;
     if (*count >= QXCALIB_MAX_ROWS) return;
@@ -126,8 +132,8 @@ static void qxcalib_finalize_row(QXCalibRow *rows, int *count,
 }
 
 static int qxcalib_load_precedent(const char *filename,
-                                   QXCalibRow *rows,
-                                   int max_rows)
+                                  QXCalibRow *rows,
+                                  int max_rows)
 {
     FILE *fp;
     char  line[QXCALIB_LINE_LEN];
@@ -182,12 +188,13 @@ static int qxcalib_load_precedent(const char *filename,
    ---------------------------------------------------------------- */
 
 static void qxcalib_compute(const QXCalibRow *rows, int count,
-                             QXCalibResult *out)
+                            const CalibParams *p,
+                            QXCalibResult *out)
 {
-    double sse          = 0.0;
-    double signed_sum   = 0.0;
-    double max_over     = 0.0;
-    double max_under    = 0.0;
+    double sse        = 0.0;
+    double signed_sum = 0.0;
+    double max_over   = 0.0;
+    double max_under  = 0.0;
     double abs_err;
     double err;
     double model;
@@ -199,22 +206,22 @@ static void qxcalib_compute(const QXCalibRow *rows, int count,
     out->max_under =  0.0;
 
     for (i = 0; i < count; i++) {
-        model = run_engine(&rows[i].state);
-        err   = model - rows[i].target;   /* signed */
+
+        /* FIXED: run_engine now receives CalibParams */
+        model = run_engine(&rows[i].state, p);
+
+        err   = model - rows[i].target;
         abs_err = err < 0.0 ? -err : err;
 
-        /* store per-row */
         strncpy(out->row_name[i], rows[i].name, 31);
         out->row_name[i][31] = '\0';
         out->row_target[i]   = rows[i].target;
         out->row_model[i]    = model;
         out->row_error[i]    = err;
 
-        /* aggregate */
         sse        += err * err;
         signed_sum += err;
 
-        /* bias tracking */
         if (err > max_over) {
             max_over = err;
             strncpy(out->max_over_name, rows[i].name, 31);
@@ -226,7 +233,6 @@ static void qxcalib_compute(const QXCalibRow *rows, int count,
             out->max_under_name[31] = '\0';
         }
 
-        /* regime bucket */
         band = get_regime(rows[i].target);
         out->regime_count[band]++;
         out->regime_sse[band] += err * err;
@@ -242,6 +248,7 @@ static void qxcalib_compute(const QXCalibRow *rows, int count,
     out->max_under         = max_under;
 }
 
+
 /* ----------------------------------------------------------------
    result writer -- full Phase 1 report
    ---------------------------------------------------------------- */
@@ -256,7 +263,7 @@ static void write_separator(FILE *fp, char c, int width)
 }
 
 static int qxcalib_write_result(const char *filename,
-                                 const QXCalibResult *r)
+                                const QXCalibResult *r)
 {
     FILE  *fp;
     int    i, band;
@@ -280,10 +287,7 @@ static int qxcalib_write_result(const char *filename,
     fprintf(fp, "Total SSE      : %.6f\n",   r->total_error);
     fprintf(fp, "Mean error     : %.6f\n",   r->mean_error);
     fprintf(fp, "RMSE           : %.6f\n",
-            r->mean_error > 0.0 ?
-            /* sqrt via Newton's method -- no math.h needed */
-            /* simple inline sqrt approximation for report  */
-            r->mean_error : 0.0);   /* placeholder -- see note below */
+            r->mean_error > 0.0 ? sqrt(r->mean_error) : 0.0);
     fprintf(fp, "\n");
 
     /* ---- bias analysis ---- */
@@ -355,6 +359,54 @@ static int qxcalib_write_result(const char *filename,
 }
 
 /* ----------------------------------------------------------------
+   arbiter writer -- compact machine-readable summary
+   ---------------------------------------------------------------- */
+
+#define QXCALIB_ARBITER_FILE "CALIB_AR.TXT"
+
+static int qxcalib_write_arbiter(const char *filename,
+                                 const QXCalibResult *r)
+{
+    FILE  *fp;
+    int    band;
+    double regime_mse;
+
+    fp = fopen(filename, "w");
+    if (!fp) return -1;
+
+    /* simple key=value format, DOS- and C89-friendly */
+
+    fprintf(fp, "rows=%d\n", r->rows);
+    fprintf(fp, "total_sse=%.10f\n", r->total_error);
+    fprintf(fp, "mean_error=%.10f\n", r->mean_error);
+    fprintf(fp, "rmse=%.10f\n",
+            r->mean_error > 0.0 ? sqrt(r->mean_error) : 0.0);
+    fprintf(fp, "mean_signed_error=%.10f\n", r->mean_signed_error);
+    fprintf(fp, "max_over=%.10f\n", r->max_over);
+    fprintf(fp, "max_under=%.10f\n", r->max_under);
+
+    for (band = 0; band < REGIME_COUNT; band++) {
+        if (r->regime_count[band] == 0) {
+            fprintf(fp, "regime_%d_rows=0\n", band);
+            fprintf(fp, "regime_%d_mse=0.0\n", band);
+            fprintf(fp, "regime_%d_maxerr=0.0\n", band);
+        } else {
+            regime_mse = r->regime_sse[band]
+                         / (double)r->regime_count[band];
+            fprintf(fp, "regime_%d_rows=%d\n",
+                    band, r->regime_count[band]);
+            fprintf(fp, "regime_%d_mse=%.10f\n",
+                    band, regime_mse);
+            fprintf(fp, "regime_%d_maxerr=%.10f\n",
+                    band, r->regime_max_err[band]);
+        }
+    }
+
+    fclose(fp);
+    return 0;
+}
+
+/* ----------------------------------------------------------------
    public entry point (unchanged signature)
    ---------------------------------------------------------------- */
 
@@ -364,19 +416,85 @@ int qxcalib_run(const char *precedent_filename,
 {
     static QXCalibRow rows[QXCALIB_MAX_ROWS];
     QXCalibResult res;
+    CalibParams model_params;
     int n;
+    int rc;
+
+    /* Initialize to safe defaults FIRST */
+    model_params.m1_w            = 0.85;
+    model_params.m3_w            = 0.72;
+    model_params.m8_mid          = 1.20;
+    model_params.m8_k            = 0.90;
+    model_params.ai_coef         = 0.50;
+    model_params.hysteresis      = 0.30;
+    model_params.regime_penalty  = 0.80;
+    model_params.liquidity_floor = 0.40;
+    model_params.tail_risk_scale = 1.10;
+
+    /* Then try to load from file (overwrites if successful) */
+    load_model_params("MODL.TXT", &model_params);
 
     n = qxcalib_load_precedent(precedent_filename, rows, QXCALIB_MAX_ROWS);
     if (n < 0) return 1;
 
-    qxcalib_compute(rows, n, &res);
+    /* FIXED: pass model_params into compute */
+    qxcalib_compute(rows, n, &model_params, &res);
+    /* write updated model parameters */
+    qxcalib_compute(rows, n, &model_params, &res);
 
+    /* write human-readable report */
     if (qxcalib_write_result(result_filename, &res) != 0)
         return 2;
+
+    /* write compact arbiter file */
+    rc = qxcalib_write_arbiter(QXCALIB_ARBITER_FILE, &res);
+
+    /* NEW: write updated model parameters */
+    qxcalib_write_model("MODL.TXT", &model_params, &res);
 
     if (out_result)
         *out_result = res;
 
+
+    return 0;
+}
+
+static int qxcalib_write_model(const char *filename,
+                               const CalibParams *oldp,
+                               const QXCalibResult *r)
+{
+    FILE *fp;
+    CalibParams newp;
+    double adj;
+
+    /* adjustment factor based on signed bias */
+    adj = 1.0 - r->mean_signed_error;
+
+    /* apply adjustment */
+    newp.m1_w            = oldp->m1_w            * adj;
+    newp.m3_w            = oldp->m3_w            * adj;
+    newp.m8_mid          = oldp->m8_mid          * adj;
+    newp.m8_k            = oldp->m8_k            * adj;
+    newp.ai_coef         = oldp->ai_coef         * adj;
+    newp.hysteresis      = oldp->hysteresis      * adj;
+    newp.regime_penalty  = oldp->regime_penalty  * adj;
+    newp.liquidity_floor = oldp->liquidity_floor * adj;
+    newp.tail_risk_scale = oldp->tail_risk_scale * adj;
+
+    fp = fopen(filename, "w");
+    if (!fp) return -1;
+
+    fprintf(fp, "m1_w=%.10f\n",            newp.m1_w);
+    fprintf(fp, "m3_w=%.10f\n",            newp.m3_w);
+    fprintf(fp, "m8_mid=%.10f\n",          newp.m8_mid);
+    fprintf(fp, "m8_k=%.10f\n",            newp.m8_k);
+    fprintf(fp, "ai_coef=%.10f\n",         newp.ai_coef);
+    fprintf(fp, "hysteresis=%.10f\n",      newp.hysteresis);
+    fprintf(fp, "regime_penalty=%.10f\n",  newp.regime_penalty);
+    fprintf(fp, "liquidity_floor=%.10f\n", newp.liquidity_floor);
+    fprintf(fp, "tail_risk_scale=%.10f\n", newp.tail_risk_scale);
+
+    fclose(fp);
     return 0;
 }
 
